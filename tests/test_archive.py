@@ -66,15 +66,15 @@ def test_ingest_preserves_raw_manifest_and_is_idempotent(tmp_path: Path) -> None
 
 def test_ingest_preserves_database_and_code_files(tmp_path: Path) -> None:
     source = _write_export(tmp_path / "source")
-    sqlite_bytes = b"SQLite format 3\\x00\\x00embedded fixture"
+    sqlite_bytes = b"SQLite format 3\x00\x00embedded fixture"
     (source / "embedded.sqlite").write_bytes(sqlite_bytes)
-    (source / "helper.py").write_text("print('kept')\\n", encoding="utf-8")
+    (source / "helper.py").write_text("print('kept')\n", encoding="utf-8")
 
     result = ingest(source, account_id="one", source_kind="open_source", archive_root=tmp_path / "archive")
     raw = Path(result["raw_path"])
 
     assert (raw / "embedded.sqlite").read_bytes() == sqlite_bytes
-    assert (raw / "helper.py").read_text(encoding="utf-8") == "print('kept')\\n"
+    assert (raw / "helper.py").read_text(encoding="utf-8") == "print('kept')\n"
 
 
 def test_ingest_rejects_vault_inside_source(tmp_path: Path) -> None:
