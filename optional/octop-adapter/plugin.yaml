@@ -1,0 +1,7 @@
+id: chatgpt-archive
+version: 0.1.0
+name: ChatGPT Local Archive
+description: Optional Octop-only adapter for the standalone chatgpt-local-backup vault. Not required to ingest, validate, or search.
+icon: "🗄️"
+kind: tool
+entry: main.py
