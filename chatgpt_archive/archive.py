@@ -73,7 +73,6 @@ def _source_files(source: Path) -> list[Path]:
     return sorted(
         path for path in source.rglob("*")
         if path.is_file() and ".git" not in path.parts
-        and not path.name.endswith((".db", ".sqlite", ".sqlite3"))
     )
 
 
@@ -104,12 +103,17 @@ def _export_root(path: Path) -> Iterator[Path]:
     if path.is_file() and path.suffix.lower() == ".zip":
         with tempfile.TemporaryDirectory() as tmp:
             target = Path(tmp).resolve()
-            with zipfile.ZipFile(path) as archive:
-                for member in archive.infolist():
-                    destination = (target / member.filename).resolve()
-                    if destination != target and target not in destination.parents:
-                        raise ArchiveError("zip export contains an unsafe path")
-                    archive.extract(member, target)
+            try:
+                with zipfile.ZipFile(path) as archive:
+                    for member in archive.infolist():
+                        destination = (target / member.filename).resolve()
+                        if destination != target and target not in destination.parents:
+                            raise ArchiveError("zip export contains an unsafe path")
+                        archive.extract(member, target)
+            except ArchiveError:
+                raise
+            except (OSError, RuntimeError, zipfile.BadZipFile) as exc:
+                raise ArchiveError(f"invalid zip export: {exc}") from exc
             yield target
         return
     yield path
@@ -251,6 +255,13 @@ def ingest(
         raise ArchiveError(f"source_kind must be one of: {', '.join(sorted(SOURCE_KINDS))}")
     source = Path(source_path).expanduser().resolve()
     root = Path(archive_root).expanduser().resolve()
+    if source.is_dir():
+        try:
+            root.relative_to(source)
+        except ValueError:
+            pass
+        else:
+            raise ArchiveError("archive_root must be outside the source directory")
     account = _safe_account_id(account_id)
     records = build_manifest(source)
     if not records:

@@ -64,6 +64,30 @@ def test_ingest_preserves_raw_manifest_and_is_idempotent(tmp_path: Path) -> None
     assert len(search(first["db_path"], "hello", account_id="account one")) == 1
 
 
+def test_ingest_preserves_database_and_code_files(tmp_path: Path) -> None:
+    source = _write_export(tmp_path / "source")
+    sqlite_bytes = b"SQLite format 3\\x00\\x00embedded fixture"
+    (source / "embedded.sqlite").write_bytes(sqlite_bytes)
+    (source / "helper.py").write_text("print('kept')\\n", encoding="utf-8")
+
+    result = ingest(source, account_id="one", source_kind="open_source", archive_root=tmp_path / "archive")
+    raw = Path(result["raw_path"])
+
+    assert (raw / "embedded.sqlite").read_bytes() == sqlite_bytes
+    assert (raw / "helper.py").read_text(encoding="utf-8") == "print('kept')\\n"
+
+
+def test_ingest_rejects_vault_inside_source(tmp_path: Path) -> None:
+    source = _write_export(tmp_path / "source")
+    with pytest.raises(ArchiveError, match="archive_root must be outside the source directory"):
+        ingest(
+            source,
+            account_id="one",
+            source_kind="open_source",
+            archive_root=source / "vault",
+        )
+
+
 def test_search_uses_local_fts_and_account_filter(tmp_path: Path) -> None:
     source = _write_export(tmp_path / "source")
     archive = tmp_path / "archive"
@@ -131,6 +155,11 @@ def test_official_zip_indexes_conversations_and_rejects_traversal(tmp_path: Path
         archive.writestr("../escape.txt", "nope")
     with pytest.raises(ArchiveError, match="unsafe path"):
         validate(zip_path, bad)
+
+    invalid = tmp_path / "invalid.zip"
+    invalid.write_bytes(b"not a zip archive")
+    with pytest.raises(ArchiveError, match="invalid zip export"):
+        validate(invalid, zip_path)
 
 
 def test_default_archive_root_is_not_under_octop(monkeypatch: pytest.MonkeyPatch) -> None:
