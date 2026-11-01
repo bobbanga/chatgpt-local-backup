@@ -19,7 +19,7 @@ pip install -e ".[dev]"
 不安装包时也可以：
 
 ```bash
-PYTHONPATH=. python -m chatgpt_archive --help
+PYTHONPATH=. python -m chatgpt_archive --help  # 或安装后直接运行 chatgpt-archive --help
 ```
 
 ## 运行 / Run
